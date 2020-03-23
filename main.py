@@ -8,7 +8,7 @@ from collections import deque
 from dataclasses import dataclass
 
 
-class Dead(Exception):
+class SnakeDied(Exception):
     ...
 
 
@@ -62,8 +62,8 @@ class Snake:
         self.queue.pop()
         self.queue.appendleft(self.queue[0] + self.direction)
 
-    def grow_tail(self, position):
-        self.queue.append(position)
+    def eat(self, bait):
+        self.queue.append(bait)
 
 
 @dataclass
@@ -90,7 +90,7 @@ class Playground:
 class Gameplay:
     snake: Snake
     playground: Playground
-    bait_position: Coordinate = None
+    bait: Coordinate = None
 
     __current_speed: float = 0.1
     __current_score: float = 0
@@ -120,7 +120,7 @@ class Gameplay:
         )
 
     def create_bait(self):
-        self.bait_position = self.playground.random_point
+        self.bait = self.playground.random_point
 
     def increase_speed(self):
         self.__current_speed *= Gameplay.__SPEED_MULTIPLIER
@@ -131,7 +131,7 @@ class Gameplay:
         )
 
     def did_ate_bait(self):
-        return self.snake.head == self.bait_position
+        return self.snake.head == self.bait
 
     def is_direction_allowed(self, next_direction):
         if not next_direction:
@@ -166,14 +166,14 @@ def main(screen):
             screen.border()
 
             screen.addstr(*top_left, f" Score: {gameplay.score} ")
-            screen.addstr(*gameplay.bait_position, Snake.BAIT)
+            screen.addstr(*gameplay.bait, Snake.BAIT)
 
             if gameplay.check_boundary():
-                raise Dead
+                raise SnakeDied
 
             if gameplay.did_ate_bait():
-                snake.grow_tail(gameplay.bait_position)
-                gameplay.bait_position = playground.random_point
+                snake.eat(gameplay.bait)
+                gameplay.create_bait()
                 gameplay.increase_speed()
                 gameplay.increase_score()
 
@@ -190,12 +190,14 @@ def main(screen):
             screen.refresh()
             time.sleep(gameplay.speed)
 
-    except Dead:
+    except SnakeDied:
         screen.erase()
-        screen.addstr(*playground.center, f"DEAD at {gameplay.score} points")
+        screen.addstr(
+            *playground.center, f"Snake died at {gameplay.score} points"
+        )
     except KeyboardInterrupt:
         screen.erase()
-        screen.addstr(*playground.center, "quiting...")
+        screen.addstr(*playground.center, "QUITTING...")
     finally:
         screen.refresh()
         time.sleep(3)
