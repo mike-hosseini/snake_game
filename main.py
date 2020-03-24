@@ -1,11 +1,14 @@
 """
 Snake game in Python
 """
+from __future__ import annotations
+
 import curses
 import random
 import time
 from collections import deque
 from dataclasses import dataclass
+from typing import Generator, Tuple
 
 
 class SnakeDied(Exception):
@@ -18,13 +21,13 @@ class Coordinate:
     x: int
 
     @classmethod
-    def from_tuple(cls, tuple):
-        return Coordinate(*tuple)
+    def from_tuple(cls, tupe: Tuple[int, int]) -> Coordinate:
+        return Coordinate(*tupe)
 
-    def __add__(self, other):
+    def __add__(self, other: Coordinate) -> Coordinate:
         return Coordinate(self.y + other.y, self.x + other.x)
 
-    def __iter__(self):
+    def __iter__(self) -> Generator[int, None, None]:
         yield self.y
         yield self.x
 
@@ -34,35 +37,35 @@ class Snake:
     BODY = "#"
     BAIT = "✕"
 
-    def __init__(self, direction, length: int, position: Coordinate):
+    def __init__(self, direction, length: int, position: Coordinate) -> None:
         self.direction = direction
         self.queue = deque(
             [position + Coordinate(1, i + 1) for i in reversed(range(length))]
         )
 
     @property
-    def head(self):
+    def head(self) -> Coordinate:
         return self.queue[0]
 
     @property
-    def body(self):
+    def body(self) -> Generator[Coordinate, None, None]:
         for idx, segment in enumerate(self.queue):
             if idx == 0:
                 continue
             yield segment
 
-    def __iter__(self):
+    def __iter__(self) -> Generator[Tuple[int, int, str], None, None]:
         for idx, segment in enumerate(self.queue):
             if idx == 0:
                 yield segment.y, segment.x, Snake.HEAD
             else:
                 yield segment.y, segment.x, Snake.BODY
 
-    def move(self):
+    def move(self) -> None:
         self.queue.pop()
         self.queue.appendleft(self.queue[0] + self.direction)
 
-    def eat(self, bait):
+    def eat(self, bait: Coordinate) -> None:
         self.queue.append(bait)
 
 
@@ -71,15 +74,15 @@ class Playground:
     max_size: Coordinate
 
     @property
-    def origin(self):
+    def origin(self) -> Coordinate:
         return Coordinate(0, 0)
 
     @property
-    def center(self):
+    def center(self) -> Coordinate:
         return Coordinate(self.max_size.y // 2, self.max_size.x // 2)
 
     @property
-    def random_point(self):
+    def random_point(self) -> Coordinate:
         return Coordinate(
             random.randint(1, self.max_size.y - 2),
             random.randint(1, self.max_size.x - 2),
@@ -105,35 +108,35 @@ class Gameplay:
     }
 
     @property
-    def speed(self):
+    def speed(self) -> float:
         return self.__current_speed
 
     @property
-    def score(self):
+    def score(self) -> int:
         return self.__current_score
 
-    def check_boundary(self):
+    def check_boundary(self) -> bool:
         return (
             self.snake.head in self.snake.body
             or self.snake.head.y in (0, self.playground.max_size.y - 1)
             or self.snake.head.x in (0, self.playground.max_size.x - 1)
         )
 
-    def create_bait(self):
+    def create_bait(self) -> None:
         self.bait = self.playground.random_point
 
-    def increase_speed(self):
+    def increase_speed(self) -> None:
         self.__current_speed *= Gameplay.__SPEED_MULTIPLIER
 
-    def increase_score(self):
+    def increase_score(self) -> None:
         self.__current_score = max(
             1, self.__current_score * Gameplay.__SCORE_MULTIPLIER
         )
 
-    def did_ate_bait(self):
+    def did_ate_bait(self) -> bool:
         return self.snake.head == self.bait
 
-    def is_direction_allowed(self, next_direction):
+    def is_direction_allowed(self, next_direction: Coordinate) -> bool:
         if not next_direction:
             return False
 
@@ -142,12 +145,11 @@ class Gameplay:
         ) or next_direction.x != -(self.snake.direction.x)
 
 
-def main(screen):
+def main(screen: "curses._CursesWindow") -> int:
     curses.curs_set(0)  # hide the cursor
     screen.nodelay(True)  # don't block i/o calls
 
     playground = Playground(Coordinate.from_tuple(screen.getmaxyx()))
-
     snake = Snake(
         direction=Gameplay.DIRECTIONS[curses.KEY_RIGHT],
         length=15,
@@ -158,14 +160,13 @@ def main(screen):
     gameplay.create_bait()
 
     screen.refresh()
-    top_left = Coordinate(0, 5)
 
     try:
         while True:
             screen.erase()
             screen.border()
 
-            screen.addstr(*top_left, f" Score: {gameplay.score} ")
+            screen.addstr(*Coordinate(0, 5), f" Score: {gameplay.score} ")
             screen.addstr(*gameplay.bait, Snake.BAIT)
 
             if gameplay.check_boundary():
@@ -200,8 +201,9 @@ def main(screen):
         screen.addstr(*playground.center, "QUITTING...")
     finally:
         screen.refresh()
-        time.sleep(3)
+        time.sleep(2)
+    return 0
 
 
 if __name__ == "__main__":
-    curses.wrapper(main)
+    exit(curses.wrapper(main))
